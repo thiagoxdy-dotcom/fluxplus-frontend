@@ -46,6 +46,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<{ status: string; data_fim: string | null } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -64,6 +65,13 @@ export default function DashboardPage() {
     if (!membership) { setLoading(false); return; }
 
     setAccountId(membership.account_id);
+
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("status, data_fim")
+      .eq("account_id", membership.account_id)
+      .maybeSingle();
+    setSubscription(sub);
 
     const now = new Date();
     const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
@@ -114,6 +122,44 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pt-10 lg:pt-0">
+
+      {/* Banner trial/expirado */}
+      {subscription && (subscription.status === "trial" || subscription.status === "grace" || subscription.status === "expired") && (
+        <div className={`flex items-center justify-between gap-4 p-4 rounded-2xl border ${
+          subscription.status === "expired"
+            ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+            : subscription.status === "grace"
+            ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+            : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="text-xl">
+              {subscription.status === "expired" ? "⚠️" : subscription.status === "grace" ? "🔔" : "🎉"}
+            </span>
+            <div>
+              <p className={`text-sm font-semibold ${
+                subscription.status === "expired" ? "text-red-700 dark:text-red-400"
+                : subscription.status === "grace" ? "text-orange-700 dark:text-orange-400"
+                : "text-blue-700 dark:text-blue-300"
+              }`}>
+                {subscription.status === "expired" ? "Sua assinatura expirou"
+                  : subscription.status === "grace" ? "Problema no pagamento — 3 dias de graça"
+                  : "Você está no período de trial gratuito"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {subscription.data_fim
+                  ? `Válido até ${new Date(subscription.data_fim).toLocaleDateString("pt-BR")}`
+                  : "Assine para continuar usando após o trial"}
+              </p>
+            </div>
+          </div>
+          <Link href="/planos"
+            className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all whitespace-nowrap">
+            {subscription.status === "expired" ? "Reativar agora" : "Assinar agora"}
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
